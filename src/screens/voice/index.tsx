@@ -1,7 +1,29 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList,
+  ScrollView,
+  Pressable
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+  interpolate,
+  withSpring,
+} from 'react-native-reanimated';
+import { 
+  GlassContainer, 
+  GlassButton, 
+  GlassCard,
+  BackgroundContainer
+} from '@/components/atoms';
+import { theme } from '@/theme';
 
 interface VoiceCommand {
   id: string;
@@ -15,262 +37,448 @@ export function VoiceScreen() {
   const [isRecording, setIsRecording] = useState(false);
   const [commands, setCommands] = useState<VoiceCommand[]>([]);
   const [currentText, setCurrentText] = useState('');
+  
+  const wave1Animation = useSharedValue(0);
+  const wave2Animation = useSharedValue(0);
+  const wave3Animation = useSharedValue(0);
+  const buttonScale = useSharedValue(1);
+
+  React.useEffect(() => {
+    if (isRecording) {
+      wave1Animation.value = withRepeat(
+        withTiming(1, { duration: 1000 }),
+        -1,
+        false
+      );
+      wave2Animation.value = withRepeat(
+        withTiming(1, { duration: 1000, delay: 200 }),
+        -1,
+        false
+      );
+      wave3Animation.value = withRepeat(
+        withTiming(1, { duration: 1000, delay: 400 }),
+        -1,
+        false
+      );
+    } else {
+      wave1Animation.value = 0;
+      wave2Animation.value = 0;
+      wave3Animation.value = 0;
+    }
+  }, [isRecording]);
+
+  const wave1Style = useAnimatedStyle(() => ({
+    opacity: interpolate(wave1Animation.value, [0, 1], [0.6, 0]),
+    transform: [{ scale: interpolate(wave1Animation.value, [0, 1], [1, 1.8]) }],
+  }));
+
+  const wave2Style = useAnimatedStyle(() => ({
+    opacity: interpolate(wave2Animation.value, [0, 1], [0.5, 0]),
+    transform: [{ scale: interpolate(wave2Animation.value, [0, 1], [1, 1.8]) }],
+  }));
+
+  const wave3Style = useAnimatedStyle(() => ({
+    opacity: interpolate(wave3Animation.value, [0, 1], [0.4, 0]),
+    transform: [{ scale: interpolate(wave3Animation.value, [0, 1], [1, 1.8]) }],
+  }));
+
+  const buttonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }],
+  }));
 
   const handleMicPress = () => {
+    buttonScale.value = withSpring(0.9, { damping: 15 }, () => {
+      buttonScale.value = withSpring(1, { damping: 15 });
+    });
+    
     setIsRecording(!isRecording);
     if (isRecording) {
-      // Stop recording logic
       setCurrentText('');
     } else {
-      // Start recording logic
       setCurrentText('듣고 있습니다...');
     }
   };
 
+  const handleExamplePress = (text: string) => {
+    const newCommand: VoiceCommand = {
+      id: Date.now().toString(),
+      text,
+      command: `실행: ${text}`,
+      timestamp: new Date(),
+      executed: true,
+    };
+    setCommands([newCommand, ...commands]);
+  };
+
   const renderCommand = ({ item }: { item: VoiceCommand }) => (
-    <View style={styles.commandItem}>
+    <GlassCard style={styles.commandItem} pressable={false}>
       <View style={styles.commandHeader}>
         <Text style={styles.commandTime}>
           {item.timestamp.toLocaleTimeString()}
         </Text>
         {item.executed && (
-          <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+          <View style={styles.executedBadge}>
+            <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
+            <Text style={styles.executedText}>실행됨</Text>
+          </View>
         )}
       </View>
       <Text style={styles.commandText}>{item.text}</Text>
       <Text style={styles.commandAction}>{item.command}</Text>
-    </View>
+    </GlassCard>
   );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        {/* Mic Button */}
+    <BackgroundContainer style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Mic Button Section */}
         <View style={styles.micContainer}>
-          <TouchableOpacity 
-            style={[
-              styles.micButton,
-              isRecording && styles.micButtonActive
-            ]}
-            onPress={handleMicPress}
-            activeOpacity={0.8}
-          >
-            <Ionicons 
-              name={isRecording ? "mic" : "mic-outline"} 
-              size={60} 
-              color="#FFFFFF" 
-            />
-          </TouchableOpacity>
+          <View style={styles.micWrapper}>
+            {/* Animated Waves */}
+            {isRecording && (
+              <>
+                <Animated.View style={[styles.wave, wave1Style]}>
+                  <LinearGradient
+                    colors={[theme.colors.accent + '60', theme.colors.accent + '20']}
+                    style={styles.waveGradient}
+                  />
+                </Animated.View>
+                <Animated.View style={[styles.wave, wave2Style]}>
+                  <LinearGradient
+                    colors={[theme.colors.accent + '50', theme.colors.accent + '15']}
+                    style={styles.waveGradient}
+                  />
+                </Animated.View>
+                <Animated.View style={[styles.wave, wave3Style]}>
+                  <LinearGradient
+                    colors={[theme.colors.accent + '40', theme.colors.accent + '10']}
+                    style={styles.waveGradient}
+                  />
+                </Animated.View>
+              </>
+            )}
+            
+            {/* Mic Button */}
+            <Animated.View style={buttonStyle}>
+              <Pressable onPress={handleMicPress}>
+                <GlassContainer style={styles.micButton} intensity={35} gradient>
+                  <LinearGradient
+                    colors={isRecording 
+                      ? [theme.colors.error, theme.colors.error + 'CC']
+                      : [theme.colors.accent, theme.colors.accent + 'CC']
+                    }
+                    style={styles.micButtonGradient}
+                  >
+                    <Ionicons 
+                      name={isRecording ? "mic" : "mic-outline"} 
+                      size={48} 
+                      color="#FFFFFF" 
+                    />
+                  </LinearGradient>
+                </GlassContainer>
+              </Pressable>
+            </Animated.View>
+          </View>
+          
+          {/* Recording Status */}
           {isRecording && (
-            <View style={styles.waveContainer}>
-              <View style={[styles.wave, styles.wave1]} />
-              <View style={[styles.wave, styles.wave2]} />
-              <View style={[styles.wave, styles.wave3]} />
-            </View>
+            <Animated.View style={styles.recordingStatus}>
+              <View style={styles.recordingDot} />
+              <Text style={styles.recordingText}>녹음 중...</Text>
+            </Animated.View>
           )}
         </View>
 
         {/* Current Recognition */}
         {currentText !== '' && (
-          <View style={styles.currentCard}>
+          <GlassCard style={styles.currentCard} pressable={false}>
+            <View style={styles.currentHeader}>
+              <Ionicons name="volume-high" size={20} color={theme.colors.accent} />
+              <Text style={styles.currentLabel}>인식된 음성</Text>
+            </View>
             <Text style={styles.currentText}>{currentText}</Text>
-          </View>
+            <View style={styles.currentWaveform}>
+              {[...Array(20)].map((_, i) => (
+                <View 
+                  key={i} 
+                  style={[
+                    styles.waveformBar,
+                    { height: Math.random() * 30 + 10 }
+                  ]} 
+                />
+              ))}
+            </View>
+          </GlassCard>
         )}
 
-        {/* Command Examples */}
-        <View style={styles.examplesCard}>
-          <Text style={styles.examplesTitle}>음성 명령 예시</Text>
+        {/* Quick Commands */}
+        <GlassCard style={styles.examplesCard} pressable={false}>
+          <Text style={styles.sectionTitle}>빠른 명령</Text>
           <View style={styles.examplesList}>
-            <TouchableOpacity style={styles.exampleItem}>
-              <Ionicons name="play-circle-outline" size={20} color="#007AFF" />
-              <Text style={styles.exampleText}>순찰 시작</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.exampleItem}>
-              <Ionicons name="walk-outline" size={20} color="#007AFF" />
-              <Text style={styles.exampleText}>따라와</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.exampleItem}>
-              <Ionicons name="stop-circle-outline" size={20} color="#007AFF" />
-              <Text style={styles.exampleText}>정지</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.exampleItem}>
-              <Ionicons name="search-outline" size={20} color="#007AFF" />
-              <Text style={styles.exampleText}>로봇 찾기</Text>
-            </TouchableOpacity>
+            {[
+              { icon: 'play-circle', text: '순찰 시작', color: theme.colors.success },
+              { icon: 'walk', text: '따라와', color: theme.colors.accent },
+              { icon: 'stop-circle', text: '정지', color: theme.colors.error },
+              { icon: 'search', text: '로봇 찾기', color: theme.colors.warning },
+            ].map((example) => (
+              <Pressable
+                key={example.text}
+                onPress={() => handleExamplePress(example.text)}
+                style={({ pressed }) => [
+                  styles.exampleItem,
+                  pressed && styles.exampleItemPressed
+                ]}
+              >
+                <LinearGradient
+                  colors={[example.color + '20', example.color + '10']}
+                  style={styles.exampleGradient}
+                >
+                  <Ionicons name={example.icon as any} size={20} color={example.color} />
+                  <Text style={[styles.exampleText, { color: example.color }]}>
+                    {example.text}
+                  </Text>
+                </LinearGradient>
+              </Pressable>
+            ))}
           </View>
-        </View>
+        </GlassCard>
 
         {/* Command History */}
-        <View style={styles.historyCard}>
-          <Text style={styles.historyTitle}>명령 기록</Text>
-          <FlatList
-            data={commands}
-            keyExtractor={(item) => item.id}
-            renderItem={renderCommand}
-            ListEmptyComponent={
-              <Text style={styles.emptyText}>아직 명령 기록이 없습니다</Text>
-            }
-            style={styles.historyList}
-          />
+        <View style={styles.historySection}>
+          <View style={styles.historyHeader}>
+            <Text style={styles.sectionTitle}>명령 기록</Text>
+            {commands.length > 0 && (
+              <Pressable
+                onPress={() => setCommands([])}
+                style={styles.clearButton}
+              >
+                <Text style={styles.clearButtonText}>모두 지우기</Text>
+              </Pressable>
+            )}
+          </View>
+          
+          {commands.length > 0 ? (
+            <FlatList
+              data={commands}
+              keyExtractor={(item) => item.id}
+              renderItem={renderCommand}
+              scrollEnabled={false}
+              ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
+            />
+          ) : (
+            <GlassCard style={styles.emptyCard} pressable={false}>
+              <Ionicons name="mic-off-outline" size={48} color={theme.colors.text.disabled} />
+              <Text style={styles.emptyText}>음성 명령을 시작하려면</Text>
+              <Text style={styles.emptyText}>마이크 버튼을 누르세요</Text>
+            </GlassCard>
+          )}
         </View>
-      </View>
-    </SafeAreaView>
+      </ScrollView>
+    </BackgroundContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
   },
-  content: {
+  scrollView: {
     flex: 1,
-    padding: 16,
+  },
+  scrollContent: {
+    paddingBottom: theme.spacing.xl,
   },
   micContainer: {
     alignItems: 'center',
-    marginVertical: 32,
+    marginVertical: theme.spacing.xl,
+  },
+  micWrapper: {
     position: 'relative',
-  },
-  micButton: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: '#007AFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  micButtonActive: {
-    backgroundColor: '#FF5252',
-  },
-  waveContainer: {
-    position: 'absolute',
-    width: 120,
-    height: 120,
+    width: 140,
+    height: 140,
     alignItems: 'center',
     justifyContent: 'center',
   },
   wave: {
     position: 'absolute',
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    borderWidth: 2,
-    borderColor: '#FF5252',
-    opacity: 0.3,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
   },
-  wave1: {
-    transform: [{ scale: 1.2 }],
+  waveGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 70,
   },
-  wave2: {
-    transform: [{ scale: 1.4 }],
+  micButton: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: 'hidden',
   },
-  wave3: {
-    transform: [{ scale: 1.6 }],
+  micButtonGradient: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordingStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: theme.spacing.md,
+    backgroundColor: theme.colors.glass.dark,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.full,
+  },
+  recordingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: theme.colors.error,
+    marginRight: theme.spacing.sm,
+  },
+  recordingText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.primary,
+    fontWeight: theme.typography.fontWeight.medium,
   },
   currentCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.lg,
+  },
+  currentHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: theme.spacing.sm,
+  },
+  currentLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginLeft: theme.spacing.sm,
   },
   currentText: {
-    fontSize: 18,
-    color: '#333',
+    fontSize: theme.typography.fontSize.lg,
+    color: theme.colors.text.primary,
+    fontWeight: theme.typography.fontWeight.medium,
+    marginBottom: theme.spacing.md,
+  },
+  currentWaveform: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 40,
+  },
+  waveformBar: {
+    width: 3,
+    backgroundColor: theme.colors.accent + '60',
+    borderRadius: 1.5,
   },
   examplesCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginHorizontal: theme.spacing.md,
+    marginBottom: theme.spacing.md,
+    padding: theme.spacing.lg,
   },
-  examplesTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
+  sectionTitle: {
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
   },
   examplesList: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: theme.spacing.sm,
   },
   exampleItem: {
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+  },
+  exampleItemPressed: {
+    opacity: 0.8,
+  },
+  exampleGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
   },
   exampleText: {
-    marginLeft: 6,
-    fontSize: 14,
-    color: '#333',
+    marginLeft: theme.spacing.sm,
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.medium,
   },
-  historyCard: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  historySection: {
+    marginHorizontal: theme.spacing.md,
   },
-  historyTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: theme.spacing.md,
   },
-  historyList: {
-    flex: 1,
+  clearButton: {
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+  },
+  clearButtonText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+  },
+  listSeparator: {
+    height: theme.spacing.sm,
   },
   commandItem: {
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    padding: theme.spacing.md,
   },
   commandHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    marginBottom: theme.spacing.sm,
   },
   commandTime: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.text.secondary,
+  },
+  executedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.success + '10',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
+  },
+  executedText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.success,
+    marginLeft: theme.spacing.xs,
+    fontWeight: theme.typography.fontWeight.medium,
   },
   commandText: {
-    fontSize: 14,
-    color: '#333',
-    marginBottom: 2,
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.xs,
   },
   commandAction: {
-    fontSize: 12,
-    color: '#007AFF',
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.accent,
     fontStyle: 'italic',
   },
+  emptyCard: {
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   emptyText: {
-    textAlign: 'center',
-    color: '#999',
-    paddingVertical: 20,
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
   },
 });

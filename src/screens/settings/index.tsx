@@ -1,15 +1,31 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  Pressable,
+  Platform
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSettingsStore } from '@/store';
 import { useROS } from '@/providers/ros-provider';
+import { 
+  GlassContainer, 
+  GlassButton, 
+  GlassCard,
+  GlassInput,
+  GlassToggle,
+  BackgroundContainer
+} from '@/components/atoms';
+import { theme } from '@/theme';
 
 export function SettingsScreen() {
   const { 
     robots, 
     currentRobotId, 
-    theme,
+    theme: appTheme,
     notifications,
     addRobot,
     selectRobot,
@@ -51,321 +67,459 @@ export function SettingsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Robot Management */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>로봇 관리</Text>
+    <BackgroundContainer style={styles.container}>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Robot Management Section */}
+        <GlassCard style={styles.section} pressable={false}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="hardware-chip" size={24} color={theme.colors.accent} />
+            <Text style={styles.sectionTitle}>로봇 관리</Text>
+          </View>
+          
           {robots.map((robot) => (
-            <TouchableOpacity
+            <Pressable
               key={robot.id}
-              style={[
-                styles.robotItem,
-                currentRobotId === robot.id && styles.robotItemActive
-              ]}
               onPress={() => handleSelectRobot(robot.id)}
+              style={({ pressed }) => [
+                styles.robotItem,
+                currentRobotId === robot.id && styles.robotItemActive,
+                pressed && styles.robotItemPressed
+              ]}
             >
-              <View style={styles.robotInfo}>
-                <Text style={styles.robotName}>{robot.name}</Text>
-                <Text style={styles.robotIP}>{robot.ip}:{robot.port}</Text>
-              </View>
-              <View style={styles.robotActions}>
-                {currentRobotId === robot.id && (
-                  <Ionicons name="checkmark-circle" size={20} color="#4CAF50" />
-                )}
-                <TouchableOpacity
-                  onPress={() => removeRobot(robot.id)}
+              <GlassContainer 
+                style={styles.robotItemContainer} 
+                intensity={currentRobotId === robot.id ? 25 : 15}
+                gradient={currentRobotId === robot.id}
+              >
+                <View style={styles.robotInfo}>
+                  <View style={styles.robotHeader}>
+                    <Text style={styles.robotName}>{robot.name}</Text>
+                    {currentRobotId === robot.id && (
+                      <View style={styles.activeBadge}>
+                        <Ionicons name="checkmark-circle" size={16} color={theme.colors.success} />
+                        <Text style={styles.activeText}>연결됨</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.robotIP}>
+                    <Ionicons name="globe" size={12} color={theme.colors.text.secondary} />
+                    {' '}{robot.ip}:{robot.port}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    removeRobot(robot.id);
+                  }}
                   style={styles.deleteButton}
                 >
-                  <Ionicons name="trash-outline" size={20} color="#FF5252" />
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
+                  <Ionicons name="trash-outline" size={20} color={theme.colors.error} />
+                </Pressable>
+              </GlassContainer>
+            </Pressable>
           ))}
           
           {showAddRobot ? (
-            <View style={styles.addRobotForm}>
-              <TextInput
-                style={styles.input}
+            <GlassContainer style={styles.addRobotForm} intensity={20}>
+              <GlassInput
                 placeholder="로봇 이름"
                 value={newRobot.name}
                 onChangeText={(text) => setNewRobot({ ...newRobot, name: text })}
+                icon={<Ionicons name="text" size={20} color={theme.colors.text.secondary} />}
               />
-              <TextInput
-                style={styles.input}
+              <GlassInput
                 placeholder="IP 주소"
                 value={newRobot.ip}
                 onChangeText={(text) => setNewRobot({ ...newRobot, ip: text })}
                 keyboardType="numeric"
+                icon={<Ionicons name="globe" size={20} color={theme.colors.text.secondary} />}
               />
-              <TextInput
-                style={styles.input}
+              <GlassInput
                 placeholder="포트 (기본: 9090)"
                 value={newRobot.port}
                 onChangeText={(text) => setNewRobot({ ...newRobot, port: text })}
                 keyboardType="numeric"
+                icon={<Ionicons name="git-network" size={20} color={theme.colors.text.secondary} />}
               />
-              <TextInput
-                style={styles.input}
+              <GlassInput
                 placeholder="토큰 (선택사항)"
                 value={newRobot.token}
                 onChangeText={(text) => setNewRobot({ ...newRobot, token: text })}
                 secureTextEntry
+                icon={<Ionicons name="key" size={20} color={theme.colors.text.secondary} />}
               />
               <View style={styles.formButtons}>
-                <TouchableOpacity 
-                  style={[styles.formButton, styles.cancelButton]}
-                  onPress={() => setShowAddRobot(false)}
-                >
-                  <Text style={styles.cancelButtonText}>취소</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.formButton, styles.saveButton]}
+                <GlassButton
+                  title="취소"
+                  onPress={() => {
+                    setShowAddRobot(false);
+                    setNewRobot({ name: '', ip: '', port: '9090', token: '' });
+                  }}
+                  variant="secondary"
+                  size="sm"
+                  style={styles.formButton}
+                />
+                <GlassButton
+                  title="저장"
                   onPress={handleAddRobot}
-                >
-                  <Text style={styles.saveButtonText}>저장</Text>
-                </TouchableOpacity>
+                  variant="primary"
+                  size="sm"
+                  style={styles.formButton}
+                />
               </View>
-            </View>
+            </GlassContainer>
           ) : (
-            <TouchableOpacity 
-              style={styles.addButton}
+            <Pressable
               onPress={() => setShowAddRobot(true)}
+              style={({ pressed }) => [
+                styles.addButton,
+                pressed && styles.addButtonPressed
+              ]}
             >
-              <Ionicons name="add-circle-outline" size={20} color="#007AFF" />
-              <Text style={styles.addButtonText}>로봇 추가</Text>
-            </TouchableOpacity>
+              <LinearGradient
+                colors={[theme.colors.glass.light, theme.colors.glass.medium]}
+                style={styles.addButtonGradient}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={theme.colors.accent} />
+                <Text style={styles.addButtonText}>로봇 추가</Text>
+              </LinearGradient>
+            </Pressable>
           )}
-        </View>
+        </GlassCard>
 
         {/* Theme Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>테마</Text>
+        <GlassCard style={styles.section} pressable={false}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="color-palette" size={24} color={theme.colors.accent} />
+            <Text style={styles.sectionTitle}>테마</Text>
+          </View>
+          
           <View style={styles.themeButtons}>
             {(['light', 'dark', 'auto'] as const).map((t) => (
-              <TouchableOpacity
+              <Pressable
                 key={t}
-                style={[
-                  styles.themeButton,
-                  theme === t && styles.themeButtonActive
-                ]}
                 onPress={() => setTheme(t)}
+                style={({ pressed }) => [
+                  styles.themeButton,
+                  appTheme === t && styles.themeButtonActive,
+                  pressed && styles.themeButtonPressed
+                ]}
               >
-                <Text style={[
-                  styles.themeButtonText,
-                  theme === t && styles.themeButtonTextActive
-                ]}>
-                  {t === 'light' ? '라이트' : t === 'dark' ? '다크' : '자동'}
-                </Text>
-              </TouchableOpacity>
+                <GlassContainer 
+                  style={styles.themeButtonContainer}
+                  intensity={appTheme === t ? 30 : 15}
+                  gradient={appTheme === t}
+                >
+                  <Ionicons 
+                    name={t === 'light' ? 'sunny' : t === 'dark' ? 'moon' : 'contrast'}
+                    size={24} 
+                    color={appTheme === t ? theme.colors.accent : theme.colors.text.secondary} 
+                  />
+                  <Text style={[
+                    styles.themeButtonText,
+                    appTheme === t && styles.themeButtonTextActive
+                  ]}>
+                    {t === 'light' ? '라이트' : t === 'dark' ? '다크' : '자동'}
+                  </Text>
+                </GlassContainer>
+              </Pressable>
             ))}
           </View>
-        </View>
+        </GlassCard>
 
         {/* Notification Settings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>알림 설정</Text>
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>알림 활성화</Text>
-            <Switch
+        <GlassCard style={styles.section} pressable={false}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="notifications" size={24} color={theme.colors.accent} />
+            <Text style={styles.sectionTitle}>알림 설정</Text>
+          </View>
+          
+          <View style={styles.settingsList}>
+            <GlassToggle
               value={notifications.enabled}
               onValueChange={(value) => updateNotifications({ enabled: value })}
-              trackColor={{ false: '#E0E0E0', true: '#81C784' }}
-              thumbColor={notifications.enabled ? '#4CAF50' : '#F5F5F5'}
+              label="알림 활성화"
             />
-          </View>
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>소리</Text>
-            <Switch
+            <View style={styles.settingDivider} />
+            <GlassToggle
               value={notifications.sound}
               onValueChange={(value) => updateNotifications({ sound: value })}
-              trackColor={{ false: '#E0E0E0', true: '#81C784' }}
-              thumbColor={notifications.sound ? '#4CAF50' : '#F5F5F5'}
+              label="소리"
+              disabled={!notifications.enabled}
             />
-          </View>
-          <View style={styles.settingItem}>
-            <Text style={styles.settingLabel}>진동</Text>
-            <Switch
+            <View style={styles.settingDivider} />
+            <GlassToggle
               value={notifications.vibration}
               onValueChange={(value) => updateNotifications({ vibration: value })}
-              trackColor={{ false: '#E0E0E0', true: '#81C784' }}
-              thumbColor={notifications.vibration ? '#4CAF50' : '#F5F5F5'}
+              label="진동"
+              disabled={!notifications.enabled}
             />
           </View>
-        </View>
+        </GlassCard>
 
         {/* App Info */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>앱 정보</Text>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>버전</Text>
-            <Text style={styles.infoValue}>1.0.0</Text>
+        <GlassCard style={styles.section} pressable={false}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="information-circle" size={24} color={theme.colors.accent} />
+            <Text style={styles.sectionTitle}>앱 정보</Text>
           </View>
-          <View style={styles.infoItem}>
-            <Text style={styles.infoLabel}>빌드 ID</Text>
-            <Text style={styles.infoValue}>2025.09.08</Text>
+          
+          <View style={styles.infoList}>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>버전</Text>
+              <View style={styles.infoBadge}>
+                <Text style={styles.infoValue}>1.0.0</Text>
+              </View>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>빌드 ID</Text>
+              <View style={styles.infoBadge}>
+                <Text style={styles.infoValue}>2025.09.08</Text>
+              </View>
+            </View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>상태</Text>
+              <View style={[styles.infoBadge, styles.statusBadge]}>
+                <View style={styles.statusDot} />
+                <Text style={styles.statusText}>정상</Text>
+              </View>
+            </View>
           </View>
-        </View>
+        </GlassCard>
+
+        {/* About Section */}
+        <GlassCard style={[styles.section, styles.aboutSection]} pressable={false}>
+          <LinearGradient
+            colors={[theme.colors.accent + '20', theme.colors.accent + '10']}
+            style={styles.aboutGradient}
+          >
+            <Ionicons name="paw" size={32} color={theme.colors.accent} />
+            <Text style={styles.aboutTitle}>Watchdot</Text>
+            <Text style={styles.aboutSubtitle}>Unitree Go2 Air Control</Text>
+            <Text style={styles.aboutVersion}>Made with ❤️ by Your Team</Text>
+          </LinearGradient>
+        </GlassCard>
       </ScrollView>
-    </SafeAreaView>
+    </BackgroundContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+  },
+  scrollView: {
+    flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    paddingBottom: theme.spacing.xl,
   },
   section: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    margin: theme.spacing.md,
+    padding: theme.spacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: theme.spacing.lg,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text.primary,
+    marginLeft: theme.spacing.sm,
   },
   robotItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    marginBottom: 8,
+    marginBottom: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
   },
   robotItemActive: {
-    backgroundColor: '#E3F2FD',
-    borderWidth: 1,
-    borderColor: '#007AFF',
+    transform: [{ scale: 1.02 }],
+  },
+  robotItemPressed: {
+    opacity: 0.9,
+  },
+  robotItemContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: theme.spacing.md,
   },
   robotInfo: {
     flex: 1,
   },
-  robotName: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 2,
-  },
-  robotIP: {
-    fontSize: 12,
-    color: '#666',
-  },
-  robotActions: {
+  robotHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: theme.spacing.xs,
+  },
+  robotName: {
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.medium,
+    color: theme.colors.text.primary,
+    marginRight: theme.spacing.sm,
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.success + '20',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
+  },
+  activeText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.success,
+    marginLeft: theme.spacing.xs,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  robotIP: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
   },
   deleteButton: {
-    marginLeft: 12,
-    padding: 4,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
   },
   addButton: {
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
+  },
+  addButtonPressed: {
+    opacity: 0.8,
+  },
+  addButtonGradient: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    padding: theme.spacing.md,
     borderWidth: 1,
-    borderColor: '#007AFF',
-    borderRadius: 8,
-    borderStyle: 'dashed',
+    borderColor: theme.colors.glass.light,
+    borderRadius: theme.borderRadius.md,
+    borderStyle: 'dashed' as any,
   },
   addButtonText: {
-    marginLeft: 8,
-    color: '#007AFF',
-    fontSize: 14,
+    marginLeft: theme.spacing.sm,
+    color: theme.colors.accent,
+    fontSize: theme.typography.fontSize.base,
+    fontWeight: theme.typography.fontWeight.medium,
   },
   addRobotForm: {
-    padding: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    fontSize: 14,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
   },
   formButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 8,
+    marginTop: theme.spacing.md,
+    gap: theme.spacing.sm,
   },
   formButton: {
     flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginHorizontal: 4,
-  },
-  cancelButton: {
-    backgroundColor: '#E0E0E0',
-  },
-  saveButton: {
-    backgroundColor: '#007AFF',
-  },
-  cancelButtonText: {
-    color: '#666',
-  },
-  saveButtonText: {
-    color: '#FFFFFF',
   },
   themeButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    gap: theme.spacing.sm,
   },
   themeButton: {
     flex: 1,
-    padding: 12,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    alignItems: 'center',
-    marginHorizontal: 4,
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
   },
   themeButtonActive: {
-    backgroundColor: '#007AFF',
+    transform: [{ scale: 1.05 }],
+  },
+  themeButtonPressed: {
+    opacity: 0.8,
+  },
+  themeButtonContainer: {
+    padding: theme.spacing.md,
+    alignItems: 'center',
   },
   themeButtonText: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
+    fontWeight: theme.typography.fontWeight.medium,
   },
   themeButtonTextActive: {
-    color: '#FFFFFF',
+    color: theme.colors.accent,
   },
-  settingItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+  settingsList: {
+    gap: theme.spacing.xs,
   },
-  settingLabel: {
-    fontSize: 14,
-    color: '#333',
+  settingDivider: {
+    height: 1,
+    backgroundColor: theme.colors.glass.light,
+    marginVertical: theme.spacing.xs,
+  },
+  infoList: {
+    gap: theme.spacing.md,
   },
   infoItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
   },
   infoLabel: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: theme.typography.fontSize.base,
+    color: theme.colors.text.secondary,
+  },
+  infoBadge: {
+    backgroundColor: theme.colors.glass.light,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.full,
   },
   infoValue: {
-    fontSize: 14,
-    color: '#333',
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.primary,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: theme.colors.success + '20',
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.success,
+    marginRight: theme.spacing.xs,
+  },
+  statusText: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.success,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  aboutSection: {
+    padding: 0,
+    overflow: 'hidden',
+  },
+  aboutGradient: {
+    padding: theme.spacing.xl,
+    alignItems: 'center',
+  },
+  aboutTitle: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text.primary,
+    marginTop: theme.spacing.sm,
+  },
+  aboutSubtitle: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+    marginTop: theme.spacing.xs,
+  },
+  aboutVersion: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.text.disabled,
+    marginTop: theme.spacing.md,
   },
 });

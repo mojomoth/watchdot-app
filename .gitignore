@@ -1,9 +1,13 @@
 # dependencies (bun install)
 node_modules
 
+# Expo
+.expo/
+dist/
+web-build/
+
 # output
 out
-dist
 *.tgz
 
 # code coverage
@@ -14,6 +18,9 @@ coverage
 logs
 _.log
 report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
+npm-debug.*
+yarn-debug.*
+yarn-error.*
 
 # dotenv environment variable files
 .env
@@ -26,9 +33,32 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .eslintcache
 .cache
 *.tsbuildinfo
+.metro-health-check*
 
 # IntelliJ based IDEs
 .idea
+*.iml
+
+# VSCode
+.vscode/
+.cursor/
 
 # Finder (MacOS) folder config
 .DS_Store
+.AppleDouble
+.LSOverride
+
+# Mobile
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# iOS
+ios/.xcode.env.local
+
+# Android
+android/app/debug
+android/app/release

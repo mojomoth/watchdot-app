@@ -1,9 +1,143 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, Platform, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+  interpolate,
+} from 'react-native-reanimated';
+import { GlassCard, GlassButton, BackgroundContainer } from '@/components/atoms';
 import { useROSStore } from '@/store';
 import { topicManager } from '@/services/ros-client';
+import { theme } from '@/theme';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const ConnectionIndicator = ({ connected, connecting }: { connected: boolean; connecting: boolean }) => {
+  const pulse = useSharedValue(0);
+
+  React.useEffect(() => {
+    if (connecting) {
+      pulse.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1000 }),
+          withTiming(0, { duration: 1000 })
+        ),
+        -1
+      );
+    } else {
+      pulse.value = 0;
+    }
+  }, [connecting]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(pulse.value, [0, 1], [0.3, 1]),
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [0.9, 1.1]) }],
+  }));
+
+  return (
+    <GlassCard style={styles.statusCard}>
+      <View style={styles.statusHeader}>
+        <Animated.View style={animatedStyle}>
+          <View style={[styles.statusDot, { backgroundColor: connected ? theme.colors.success : theme.colors.error }]} />
+        </Animated.View>
+        <Text style={styles.statusTitle}>연결 상태</Text>
+      </View>
+      <Text style={[styles.statusText, { color: connected ? theme.colors.success : theme.colors.text.secondary }]}>
+        {connecting ? '연결 중...' : connected ? '연결됨' : '연결 끊김'}
+      </Text>
+    </GlassCard>
+  );
+};
+
+const BatteryIndicator = ({ battery }: { battery: any }) => {
+  const rotation = useSharedValue(0);
+
+  React.useEffect(() => {
+    if (battery.isCharging) {
+      rotation.value = withRepeat(
+        withTiming(360, { duration: 3000 }),
+        -1
+      );
+    } else {
+      rotation.value = 0;
+    }
+  }, [battery.isCharging]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
+  const getBatteryColor = (percentage: number) => {
+    if (percentage > 60) return theme.colors.success;
+    if (percentage > 20) return theme.colors.warning;
+    return theme.colors.error;
+  };
+
+  return (
+    <GlassCard style={styles.statusCard}>
+      <View style={styles.batteryHeader}>
+        <Animated.View style={animatedStyle}>
+          <Ionicons 
+            name={battery.isCharging ? "battery-charging" : "battery-half"} 
+            size={24} 
+            color={getBatteryColor(battery.percentage)} 
+          />
+        </Animated.View>
+        <Text style={styles.statusTitle}>배터리</Text>
+      </View>
+      
+      <View style={styles.batteryCircle}>
+        <View style={styles.batteryCircleBackground}>
+          <LinearGradient
+            colors={[getBatteryColor(battery.percentage), getBatteryColor(battery.percentage) + '40']}
+            style={[
+              styles.batteryCircleFill,
+              {
+                height: `${battery.percentage}%`,
+              }
+            ]}
+          />
+        </View>
+        <Text style={styles.batteryPercentage}>{battery.percentage.toFixed(0)}%</Text>
+      </View>
+      
+      <View style={styles.batteryDetails}>
+        <Text style={styles.batteryDetailText}>{battery.voltage.toFixed(1)}V</Text>
+        <Text style={styles.batteryDetailText}>•</Text>
+        <Text style={styles.batteryDetailText}>{battery.current.toFixed(1)}A</Text>
+      </View>
+    </GlassCard>
+  );
+};
+
+const QuickActionCard = ({ icon, label, color, onPress }: any) => {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.quickActionContainer, animatedStyle]}>
+      <GlassCard 
+        style={styles.quickActionCard}
+        pressable
+        onPress={onPress}
+      >
+        <View style={[styles.quickActionIcon, { backgroundColor: color + '20' }]}>
+          <Ionicons name={icon} size={32} color={color} />
+        </View>
+        <Text style={styles.quickActionLabel}>{label}</Text>
+      </GlassCard>
+    </Animated.View>
+  );
+};
 
 export function DashboardScreen() {
   const { connection, battery, position, cameraThumbnail } = useROSStore();
@@ -13,235 +147,247 @@ export function DashboardScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Connection Status */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusHeader}>
-            <Ionicons 
-              name={connection.connected ? "wifi" : "wifi-outline"} 
-              size={24} 
-              color={connection.connected ? "#4CAF50" : "#FF5252"} 
-            />
-            <Text style={styles.statusTitle}>연결 상태</Text>
-          </View>
-          <Text style={[
-            styles.statusText,
-            { color: connection.connected ? "#4CAF50" : "#FF5252" }
-          ]}>
-            {connection.connecting ? "연결 중..." : 
-             connection.connected ? "연결됨" : "연결 끊김"}
-          </Text>
-          {connection.error && (
-            <Text style={styles.errorText}>{connection.error}</Text>
-          )}
-        </View>
-
-        {/* Battery Status */}
-        <View style={styles.statusCard}>
-          <View style={styles.statusHeader}>
-            <Ionicons 
-              name="battery-charging" 
-              size={24} 
-              color={battery.percentage > 20 ? "#4CAF50" : "#FF5252"} 
-            />
-            <Text style={styles.statusTitle}>배터리</Text>
-          </View>
-          <View style={styles.batteryContainer}>
-            <View style={styles.batteryBar}>
-              <View 
-                style={[
-                  styles.batteryFill,
-                  { 
-                    width: `${battery.percentage}%`,
-                    backgroundColor: battery.percentage > 20 ? "#4CAF50" : "#FF5252"
-                  }
-                ]}
-              />
-            </View>
-            <Text style={styles.batteryText}>{battery.percentage.toFixed(0)}%</Text>
-          </View>
-          <Text style={styles.batteryDetails}>
-            {battery.voltage.toFixed(1)}V / {battery.current.toFixed(1)}A
-          </Text>
-        </View>
-
-        {/* Camera Thumbnail */}
-        {cameraThumbnail && (
-          <View style={styles.cameraCard}>
-            <Text style={styles.cameraTitle}>카메라 미리보기</Text>
-            <Image 
-              source={{ uri: cameraThumbnail }} 
-              style={styles.cameraImage}
-              resizeMode="cover"
-            />
-          </View>
-        )}
-
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <Text style={styles.sectionTitle}>빠른 실행</Text>
-          <View style={styles.actionGrid}>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="play-circle" size={32} color="#007AFF" />
-              <Text style={styles.actionText}>순찰 시작</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="walk" size={32} color="#007AFF" />
-              <Text style={styles.actionText}>따라오기</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton}>
-              <Ionicons name="search" size={32} color="#007AFF" />
-              <Text style={styles.actionText}>로봇 찾기</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Emergency Stop */}
-        <TouchableOpacity 
-          style={styles.emergencyButton}
-          onPress={handleEmergencyStop}
+    <BackgroundContainer style={styles.container}>
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <Ionicons name="stop-circle" size={32} color="#FFFFFF" />
-          <Text style={styles.emergencyText}>긴급 정지</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    </SafeAreaView>
+          {/* Status Cards Row */}
+          <View style={styles.statusRow}>
+            <ConnectionIndicator connected={connection.connected} connecting={connection.connecting} />
+            <BatteryIndicator battery={battery} />
+          </View>
+
+          {/* Camera Preview */}
+          {cameraThumbnail && (
+            <GlassCard style={styles.cameraCard}>
+              <Text style={styles.sectionTitle}>카메라</Text>
+              <View style={styles.cameraContainer}>
+                <Image 
+                  source={{ uri: cameraThumbnail }} 
+                  style={styles.cameraImage}
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['transparent', 'rgba(0,0,0,0.4)']}
+                  style={styles.cameraOverlay}
+                />
+                <View style={styles.cameraLive}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>LIVE</Text>
+                </View>
+              </View>
+            </GlassCard>
+          )}
+
+          {/* Quick Actions */}
+          <Text style={styles.sectionTitle}>빠른 실행</Text>
+          <View style={styles.quickActionsGrid}>
+            <QuickActionCard
+              icon="play-circle"
+              label="순찰 시작"
+              color={theme.colors.primary}
+              onPress={() => {}}
+            />
+            <QuickActionCard
+              icon="walk"
+              label="따라오기"
+              color={theme.colors.accent}
+              onPress={() => {}}
+            />
+            <QuickActionCard
+              icon="search"
+              label="로봇 찾기"
+              color={theme.colors.warning}
+              onPress={() => {}}
+            />
+            <QuickActionCard
+              icon="pulse"
+              label="진단 실행"
+              color={theme.colors.info}
+              onPress={() => {}}
+            />
+          </View>
+
+          {/* Emergency Stop Button */}
+          <View style={styles.emergencyContainer}>
+            <GlassButton
+              onPress={handleEmergencyStop}
+              label="긴급 정지"
+              variant="danger"
+              size="large"
+              icon={<Ionicons name="stop-circle" size={28} color="#FFFFFF" />}
+              style={styles.emergencyButton}
+            />
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </BackgroundContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
+  },
+  safeArea: {
+    flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: theme.spacing.md,
+    paddingBottom: theme.platform.tabBarHeight + theme.spacing.xl,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
   },
   statusCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    flex: 1,
+    padding: theme.spacing.md,
   },
   statusHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: theme.spacing.sm,
+  },
+  statusDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: theme.spacing.sm,
   },
   statusTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.secondary,
+    fontWeight: theme.typography.fontWeight.medium,
   },
   statusText: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
   },
-  errorText: {
-    color: '#FF5252',
-    fontSize: 12,
-    marginTop: 4,
-  },
-  batteryContainer: {
+  batteryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: theme.spacing.md,
   },
-  batteryBar: {
-    flex: 1,
-    height: 24,
-    backgroundColor: '#E0E0E0',
-    borderRadius: 12,
-    overflow: 'hidden',
-    marginRight: 12,
+  batteryCircle: {
+    width: 80,
+    height: 80,
+    alignSelf: 'center',
+    marginVertical: theme.spacing.sm,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  batteryFill: {
+  batteryCircleBackground: {
+    position: 'absolute',
+    width: '100%',
     height: '100%',
-    borderRadius: 12,
+    borderRadius: 40,
+    backgroundColor: theme.colors.glass.dark,
+    borderWidth: 2,
+    borderColor: theme.colors.border,
+    overflow: 'hidden',
+    justifyContent: 'flex-end',
   },
-  batteryText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    minWidth: 50,
+  batteryCircleFill: {
+    width: '100%',
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+  },
+  batteryPercentage: {
+    fontSize: theme.typography.fontSize.xl,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text.primary,
   },
   batteryDetails: {
-    fontSize: 12,
-    color: '#666',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.sm,
+  },
+  batteryDetailText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: theme.colors.text.secondary,
   },
   cameraCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: theme.spacing.lg,
+    padding: theme.spacing.md,
   },
-  cameraTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
+  cameraContainer: {
+    position: 'relative',
+    borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
   },
   cameraImage: {
     width: '100%',
-    height: 180,
-    borderRadius: 8,
+    height: 200,
+    backgroundColor: theme.colors.glass.dark,
   },
-  quickActions: {
-    marginBottom: 24,
+  cameraOverlay: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  cameraLive: {
+    position: 'absolute',
+    top: theme.spacing.sm,
+    right: theme.spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 0, 0, 0.8)',
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    borderRadius: theme.borderRadius.sm,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    marginRight: theme.spacing.xs,
+  },
+  liveText: {
+    fontSize: theme.typography.fontSize.xs,
+    color: '#FFFFFF',
+    fontWeight: theme.typography.fontWeight.bold,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
+    fontSize: theme.typography.fontSize.lg,
+    fontWeight: theme.typography.fontWeight.bold,
+    color: theme.colors.text.primary,
+    marginBottom: theme.spacing.md,
   },
-  actionGrid: {
+  quickActionsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: theme.spacing.md,
+    marginBottom: theme.spacing.xl,
   },
-  actionButton: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+  quickActionContainer: {
+    width: (SCREEN_WIDTH - theme.spacing.md * 3) / 2,
+  },
+  quickActionCard: {
+    padding: theme.spacing.lg,
     alignItems: 'center',
-    marginHorizontal: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  actionText: {
-    fontSize: 12,
-    marginTop: 8,
-    color: '#333',
-  },
-  emergencyButton: {
-    backgroundColor: '#FF5252',
-    borderRadius: 12,
-    padding: 20,
-    flexDirection: 'row',
+  quickActionIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
+    marginBottom: theme.spacing.sm,
   },
-  emergencyText: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 12,
+  quickActionLabel: {
+    fontSize: theme.typography.fontSize.sm,
+    color: theme.colors.text.primary,
+    fontWeight: theme.typography.fontWeight.medium,
+  },
+  emergencyContainer: {
+    marginTop: theme.spacing.md,
+  },
+  emergencyButton: {
+    width: '100%',
   },
 });
