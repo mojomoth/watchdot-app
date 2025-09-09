@@ -1,0 +1,11 @@
+<svg width="1284" height="2778" viewBox="0 0 1284 2778" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1284" height="2778" fill="#007AFF"/>
+  <g transform="translate(642, 1389)">
+    <circle cx="0" cy="0" r="200" fill="white"/>
+    <circle cx="0" cy="0" r="150" fill="#007AFF"/>
+    <circle cx="0" cy="0" r="100" fill="white"/>
+    <circle cx="0" cy="0" r="50" fill="#007AFF"/>
+    <path d="M0 -100 L0 100 M-100 0 L100 0" stroke="white" stroke-width="25" stroke-linecap="round"/>
+  </g>
+  <text x="642" y="1650" fill="white" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="bold" text-anchor="middle">WatchDot</text>
+</svg>
